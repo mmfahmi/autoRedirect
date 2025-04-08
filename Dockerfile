@@ -12,13 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code into the container
 COPY . .
 
-# Expose the port the app runs on
-# listen on port 8080
-EXPOSE 8080
-
-# Set the environment variable for Flask
-ENV FLASK_APP=app.py
-ENV FLASK_RUN_HOST=0.0.0.0
+ENTRYPOINT [ "python" ]
 
 # Run the application
-CMD ["flask", "run"]
+CMD ["app.py"]
