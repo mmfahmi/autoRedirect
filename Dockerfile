@@ -1,4 +1,3 @@
-# Use the official Python image as the base image
 FROM python:3.9-slim
 
 # Set the working directory in the container
@@ -14,6 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose the port the app runs on
+# listen on port 8080
 EXPOSE 8080
 
 # Set the environment variable for Flask
