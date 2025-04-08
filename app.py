@@ -4,6 +4,7 @@ import os
 
 app = Flask(__name__)
 
+
 # API keys for IP geolocation services (replace with your actual keys)
 IP_API_KEY = os.environ.get("IP_API_KEY", "YOUR_IP_API_KEY")
 IPINFO_TOKEN = os.environ.get("IPINFO_TOKEN", "YOUR_IPINFO_TOKEN")
@@ -92,4 +93,4 @@ def vpn_detected():
     return render_template("vpn_detected.html")
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=8080)
