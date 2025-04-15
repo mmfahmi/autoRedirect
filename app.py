@@ -14,6 +14,25 @@ KNOWN_VPN_ASNS = [
     "AS13335",  # Cloudflare
     "AS14061",  # DigitalOcean
     "AS20473",  # The Constant Company, LLC
+    "AS13335",  #cloudlflare asn
+    "AS15169",  # Google LLC
+    "AS16509",  # Amazon.com, Inc.
+    "AS32934",  # Facebook, Inc.
+    "AS36351",  # SoftLayer Technologies Inc.
+    "AS395282",  # OVH SAS
+    "AS395561",  # Linode, LLC
+    "AS40676",  # Amazon Technologies Inc.
+    "AS45102",  # Tencent Cloud Computing (Beijing) Co., Ltd.
+    "AS4808",  # China Unicom
+    "AS4837",  # China Telecom (Group) Corporation
+    "AS55836",  # Alibaba (China) Technology Co., Ltd.
+    "AS56040",  # Alibaba Cloud Computing Ltd. (Aliyun)
+    "AS58073",  # Tencent Building, Kejizhongyi Avenue
+    "AS60781",  # Microsoft Azure
+    "AS63949",  # Oracle Corporation
+    "AS6939",  # Hurricane Electric, Inc.
+    "AS8075",  # Microsoft Corporation
+
     # Add more ASNs of known VPN providers, hosting providers, etc.
 ]
 
