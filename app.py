@@ -1,6 +1,7 @@
 from flask import Flask, request, redirect, render_template
 import requests
 import os
+from ipaddress import ip_network, ip_address
 
 app = Flask(__name__)
 
@@ -38,66 +39,80 @@ KNOWN_VPN_ASNS = [
 
 # List of known VPN IP address ranges (very difficult to maintain)
 KNOWN_VPN_RANGES = [
-    # Example: "103.2.160.0/20",
-    # Maintaining this list is impractical due to the dynamic nature of VPN IPs
+    ip_network("130.41.227.171/32"),
+    ip_network("103.2.160.0/20"),
+    ip_network("192.168.1.0/24"),  # Example private range
+    ip_network("172.16.0.0/12"),   # Example private range
+    ip_network("127.0.0.0/8"),    # Example loopback range
+    ip_network("10.0.0.0/8"),      # Example private range
+    # Add more ranges as needed
 ]
 
-def is_likely_vpn(ip_address):
+def is_likely_vpn(ip_address_str):
     """Attempts to detect if the IP address is likely associated with a VPN."""
-
-    # 1. Check against known VPN ASN (Autonomous System Number)
     try:
-        response = requests.get(f"https://ipapi.co/{ip_address}/asn/", timeout=2)
-        if response.status_code == 200:
-            asn = response.text.strip()
-            if asn in KNOWN_VPN_ASNS:
-                print(f"Likely VPN: ASN {asn} found in known VPN ASNs.")
+        # Convert the IP address string to an ip_address object
+        ip_address_obj = ip_address(ip_address_str)
+
+        # 1. Check against known VPN ASN (Autonomous System Number)
+        try:
+            response = requests.get(f"https://ipapi.co/{ip_address_str}/asn/", timeout=2)
+            if response.status_code == 200:
+                asn = response.text.strip()
+                if asn in KNOWN_VPN_ASNS:
+                    print(f"Likely VPN: ASN {asn} found in known VPN ASNs.")
+                    return True
+        except requests.exceptions.RequestException as e:
+            print(f"Error checking ASN: {e}")
+
+        # 2. Check against known VPN IP ranges (very limited effectiveness)
+        for vpn_range in KNOWN_VPN_RANGES:
+            if ip_address_obj in vpn_range:
+                print(f"Likely VPN: IP {ip_address_obj} in known VPN range {vpn_range}.")
                 return True
-    except requests.exceptions.RequestException as e:
-        print(f"Error checking ASN: {e}")
 
-    # 2. Check against known VPN IP ranges (very limited effectiveness)
-    # for vpn_range in KNOWN_VPN_RANGES:
-    #     if ip_address in ip_network(vpn_range, strict=False):
-    #         print(f"Likely VPN: IP {ip_address} in known VPN range {vpn_range}.")
-    #         return True
+        # 3. Use IP geolocation services to look for VPN indicators
+        try:
+            # Using ipinfo.io (requires a token)
+            if IPINFO_TOKEN != "YOUR_IPINFO_TOKEN":
+                response = requests.get(f"https://ipinfo.io/{ip_address_str}/json?token={IPINFO_TOKEN}", timeout=2)
+                if response.status_code == 200:
+                    data = response.json()
+                    if "privacy" in data and data["privacy"].get("vpn", False):
+                        print(f"Likely VPN: ipinfo.io reports VPN usage.")
+                        return True
+                    if "company" in data and any(keyword in data["company"].get("name", "").lower() for keyword in ["vpn", "hosting", "cloud"]):
+                        print(f"Likely VPN: Company name suggests hosting/VPN.")
+                        return True
 
-    # 3. Use IP geolocation services to look for VPN indicators
-    try:
-        # Using ipinfo.io (requires a token)
-        if IPINFO_TOKEN != "YOUR_IPINFO_TOKEN":
-            response = requests.get(f"https://ipinfo.io/{ip_address}/json?token={IPINFO_TOKEN}", timeout=2)
-            if response.status_code == 200:
-                data = response.json()
-                if "privacy" in data and data["privacy"].get("vpn", False):
-                    print(f"Likely VPN: ipinfo.io reports VPN usage.")
-                    return True
-                if "company" in data and any(keyword in data["company"].get("name", "").lower() for keyword in ["vpn", "hosting", "cloud"]):
-                    print(f"Likely VPN: Company name suggests hosting/VPN.")
-                    return True
+            # Using ipapi.co (no token required for basic usage, but rate limits apply)
+            elif IP_API_KEY != "YOUR_IP_API_KEY":
+                response = requests.get(f"https://ipapi.co/{ip_address_str}/json/", timeout=2)
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("security", {}).get("is_vpn", False):
+                        print(f"Likely VPN: ipapi.co reports VPN usage.")
+                        return True
+                    if data.get("org", "").lower() in ["amazon web services", "google cloud", "microsoft azure", "digitalocean", "linode"]:
+                        print(f"Likely VPN: Organization suggests hosting/VPN.")
+                        return True
 
-        # Using ipapi.co (no token required for basic usage, but rate limits apply)
-        elif IP_API_KEY != "YOUR_IP_API_KEY":
-            response = requests.get(f"https://ipapi.co/{ip_address}/json/", timeout=2)
-            if response.status_code == 200:
-                data = response.json()
-                if data.get("security", {}).get("is_vpn", False):
-                    print(f"Likely VPN: ipapi.co reports VPN usage.")
-                    return True
-                if data.get("org", "").lower() in ["amazon web services", "google cloud", "microsoft azure", "digitalocean", "linode"]:
-                    print(f"Likely VPN: Organization suggests hosting/VPN.")
-                    return True
+        except requests.exceptions.RequestException as e:
+            print(f"Error checking geolocation services: {e}")
+        except Exception as e:
+            print(f"Error parsing geolocation data: {e}")
 
-    except requests.exceptions.RequestException as e:
-        print(f"Error checking geolocation services: {e}")
-    except Exception as e:
-        print(f"Error parsing geolocation data: {e}")
+    except ValueError as e:
+        print(f"Invalid IP address: {ip_address_str}. Error: {e}")
 
     return False
 
 @app.route('/')
 def index():
-    user_ip = request.remote_addr
+    # Get the real IP address from the X-Forwarded-For header
+    user_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    # If there are multiple IPs in the header, take the first one (the client's IP)
+    user_ip = user_ip.split(',')[0].strip()
     print(f"User IP: {user_ip}")
 
     if is_likely_vpn(user_ip):
@@ -105,7 +120,7 @@ def index():
         return redirect("/vpn-detected")
     else:
         print("No VPN suspected. Serving normal content.")
-        return render_template("normal_content.html")
+        return render_template("normal_content.html", user_ip=user_ip)
 
 @app.route('/vpn-detected')
 def vpn_detected():
